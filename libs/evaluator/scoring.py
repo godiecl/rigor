@@ -6,6 +6,8 @@ without a circular import.
 
 SCORE_MIN: float = 1.0
 SCORE_MAX: float = 7.0
+# Criterion scores are reported on a discrete 0.5 grid (1.0, 1.5, …, 7.0).
+SCORE_STEP: float = 0.5
 
 # Lower-bound ladder. Ordered high -> low. A continuous score always falls in
 # exactly one band (no dead-zones between e.g. 5.99 and 6.0).
@@ -28,3 +30,9 @@ def get_level_for_score(score: float) -> str:
 
 def clamp_score(score: float) -> float:
     return max(SCORE_MIN, min(SCORE_MAX, score))
+
+
+def snap_to_step(score: float) -> float:
+    """Clamp to [1.0, 7.0] and round to the nearest 0.5 step."""
+    clamped = clamp_score(score)
+    return round(clamped / SCORE_STEP) * SCORE_STEP

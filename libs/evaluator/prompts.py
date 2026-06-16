@@ -18,6 +18,7 @@ REGLAS GLOBALES (obligatorias):
 - Si el documento NO contiene información sobre este criterio, asigna el nivel que corresponda según la rúbrica (normalmente "Insuficiente"), explica la ausencia y no asumas que la información existe.
 - El documento fue extraído automáticamente de un PDF y puede contener artefactos (saltos de línea, tablas rotas, encabezados/pies, símbolos sueltos). No penalices estos artefactos como errores del estudiante, salvo que el criterio sea de redacción/formato y el error sea claramente atribuible al autor.
 - Usa TODA la escala 1.0–7.0 de forma calibrada; no te limites a los extremos. El puntaje debe caer dentro del rango del nivel elegido.
+- Asigna el puntaje en pasos de 0.5 exactamente (1.0, 1.5, 2.0, 2.5, …, 6.5, 7.0). No uses decimales distintos de .0 o .5.
 - Premia la evidencia y el análisis, no la extensión ni la verbosidad.
 - Sé objetivo y consistente: el mismo contenido debe recibir el mismo puntaje. Responde siempre en español.
 

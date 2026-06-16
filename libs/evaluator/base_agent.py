@@ -7,7 +7,7 @@ import litellm
 from litellm import acompletion
 
 from .schemas import CriterionEvaluation, strict_schema
-from .scoring import clamp_score, get_level_for_score
+from .scoring import get_level_for_score, snap_to_step
 
 # Drop provider-unsupported params instead of erroring (e.g. reasoning models
 # such as gpt-5.* that reject `temperature` / remap `max_tokens`).
@@ -171,9 +171,9 @@ class CriterionAgent:
                 self._extract_json(raw_args)
             )
 
-            # Score is the rubric anchor; derive the level from it deterministically
-            # so the displayed band can never contradict the number.
-            score = clamp_score(evaluation.score)
+            # Score is the rubric anchor; snap to the 0.5 grid, then derive the
+            # level from it deterministically so the band can't contradict it.
+            score = snap_to_step(evaluation.score)
             level = get_level_for_score(score)
             self.log.info("✓ '%s': score=%.1f (%s)", self.name, score, level)
             if level != evaluation.level:

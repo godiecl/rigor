@@ -32,7 +32,7 @@ class CriterionEvaluation(BaseModel):
     score: float = Field(
         ge=SCORE_MIN,
         le=SCORE_MAX,
-        description="Puntaje de 1.0 a 7.0 según la rúbrica",
+        description="Puntaje de 1.0 a 7.0 en pasos de 0.5 (1.0, 1.5, …, 7.0) según la rúbrica",
     )
     level: Literal["Excelente", "Bueno", "Suficiente", "Insuficiente"] = Field(
         description="Nivel cualitativo correspondiente al puntaje"
