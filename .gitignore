@@ -95,4 +95,4 @@ database.db
 /input/*.pdf
 
 # outputs
-/output/
+/output/evaluations/
