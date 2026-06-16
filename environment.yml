@@ -1,0 +1,9 @@
+name: rigor
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip=26.1.2      # https://anaconda.org/channels/conda-forge/packages/pip/overview
+  - python=3.13.13  # https://anaconda.org/channels/main/packages/python/overview
+  - pip:
+      - uv==0.11.21 # https://pypi.org/project/uv/

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": true,
+  "mcp": {
+    "idea": {
+      "type": "remote",
+      "url": "http://127.0.0.1:64343/sse",
+      "headers": {}
+    }
+  }
+}
