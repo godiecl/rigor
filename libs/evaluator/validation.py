@@ -41,6 +41,26 @@ def _is_grounded(quote: str, normalized_source: str) -> bool:
     return (hits / len(tokens)) >= _EVIDENCE_MATCH_THRESHOLD
 
 
+def locate_evidence_pages(
+    evidence: list[str], pages: list[str]
+) -> list[int | None]:
+    """Map each evidence quote to the 1-based PDF page it was found on.
+
+    ``None`` means the quote couldn't be located on any page (likely fabricated
+    or spanning a page break). Mirrors the grounding match used in validation.
+    """
+    normalized_pages = [_normalize(p) for p in pages]
+    located: list[int | None] = []
+    for quote in evidence:
+        page_no: int | None = None
+        for idx, norm_page in enumerate(normalized_pages, start=1):
+            if _is_grounded(quote, norm_page):
+                page_no = idx
+                break
+        located.append(page_no)
+    return located
+
+
 def validate_result(result: EvaluationResult, source_text: str) -> list[str]:
     """Return a list of warning messages; empty means the verdict looks sound."""
     if result.error:

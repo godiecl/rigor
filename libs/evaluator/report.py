@@ -84,7 +84,6 @@ def generate_markdown_report(data: ReportData) -> str:
             lines.append(
                 f"| {display} | {r.weight:.0%} | {_format_score(r.score)} | {level_emoji} {r.level} |"
             )
-    lines.append("")
     lines.append(
         f"| **Total ponderado** | **100%** | **{_format_score(agg.final_score)}** | **{emoji} {agg.final_level}** |"
     )
@@ -111,8 +110,10 @@ def generate_markdown_report(data: ReportData) -> str:
 
         if r.evidence:
             lines.append("**Evidencia citada:**")
-            for ev in r.evidence:
-                lines.append(f"- _{ev}_")
+            pages = r.evidence_pages or [None] * len(r.evidence)
+            for ev, page in zip(r.evidence, pages):
+                cite = f"📄 p. {page}" if page else "📄 página no localizada"
+                lines.append(f"- _{ev}_ ({cite})")
             lines.append("")
 
         if r.strengths:
@@ -185,7 +186,13 @@ def generate_json_report(data: ReportData) -> dict[str, Any]:
                 "score": r.score if not r.error else None,
                 "level": r.level if not r.error else None,
                 "justification": r.justification,
-                "evidence": r.evidence,
+                "evidence": [
+                    {"quote": quote, "page": page}
+                    for quote, page in zip(
+                        r.evidence,
+                        r.evidence_pages or [None] * len(r.evidence),
+                    )
+                ],
                 "strengths": r.strengths,
                 "weaknesses": r.weaknesses,
                 "improvements": r.improvements,

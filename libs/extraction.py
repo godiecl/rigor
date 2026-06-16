@@ -33,6 +33,8 @@ _PAGE_NUMBER_LINE = re.compile(
     r"^\s*(p[áa]g(?:ina)?\.?\s*)?\d+\s*(/\s*\d+)?\s*$", re.IGNORECASE
 )
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# Dotted leaders from tables of contents/figures ("Figura 1 ....... 7").
+_DOT_LEADERS = re.compile(r"\s*\.{4,}\s*")
 _BLANK_LINES = re.compile(r"\n{3,}")
 
 
@@ -92,6 +94,7 @@ def clean_markdown(text: str) -> str:
     text = _CONTROL_CHARS.sub("", text)
     text = _IMAGE_MD.sub("", text)
     text = _OMITTED_PLACEHOLDER.sub("", text)
+    text = _DOT_LEADERS.sub(" ", text)
     text = _HYPHEN_BREAK.sub(r"\1\2", text)
 
     lines = [
@@ -106,8 +109,13 @@ def clean_markdown(text: str) -> str:
 
 def extract_clean_text(
     pdf_path: Path, show_progress: bool = True
-) -> tuple[str, ExtractionStats]:
-    """Extract a PDF to cleaned markdown plus extraction stats."""
+) -> tuple[str, list[str], ExtractionStats]:
+    """Extract a PDF to cleaned markdown.
+
+    Returns the full text (for the judges), the cleaned per-page list (index +1
+    is the PDF page, used to locate where each evidence quote came from), and
+    extraction stats.
+    """
     chunks = pymupdf4llm.to_markdown(
         pdf_path,
         page_chunks=True,
@@ -115,11 +123,14 @@ def extract_clean_text(
         ignore_graphics=True,
         show_progress=show_progress,
     )
-    pages = [chunk["text"] for chunk in chunks]
-    raw_chars = sum(len(p) for p in pages)
+    raw_pages = [chunk["text"] for chunk in chunks]
+    raw_chars = sum(len(p) for p in raw_pages)
 
-    pages, removed = _strip_running_headers_footers(pages)
-    text = clean_markdown("\n\n".join(pages))
+    raw_pages, removed = _strip_running_headers_footers(raw_pages)
+    # Clean per page so positions stay aligned with the PDF; empty pages are kept
+    # to preserve page numbering but excluded from the joined text.
+    pages = [clean_markdown(p) for p in raw_pages]
+    text = "\n\n".join(p for p in pages if p)
 
     stats = ExtractionStats(
         pages=len(pages),
@@ -127,4 +138,4 @@ def extract_clean_text(
         clean_chars=len(text),
         removed_header_footer_lines=removed,
     )
-    return text, stats
+    return text, pages, stats

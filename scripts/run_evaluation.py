@@ -14,6 +14,7 @@ from evaluator import (
     aggregate_scores,
     check_consistency,
     validate_result,
+    locate_evidence_pages,
     JudgeConfig,
     ReportData,
     Usage,
@@ -27,6 +28,7 @@ log = logging.getLogger(__name__)
 
 async def run_evaluation(
     text: str,
+    pages: list[str],
     config: JudgeConfig,
 ) -> ReportData:
     agents = create_agents()
@@ -59,6 +61,7 @@ async def run_evaluation(
     flagged = 0
     for r in results:
         r.validation_flags = validate_result(r, text)
+        r.evidence_pages = locate_evidence_pages(r.evidence, pages)
         if r.validation_flags:
             flagged += 1
             for f in r.validation_flags:
@@ -111,7 +114,7 @@ async def process_pdf(
 ) -> None:
     log.info(f"extracting text from {pdf_path.name}")
     with benchmark("PDF extraction", log):
-        md_text, stats = extract_clean_text(pdf_path)
+        md_text, pages, stats = extract_clean_text(pdf_path)
     log.info(
         "extracted %s pages, %s -> %s chars (%s header/footer lines removed)",
         stats.pages,
@@ -122,6 +125,7 @@ async def process_pdf(
 
     report_data = await run_evaluation(
         text=md_text,
+        pages=pages,
         config=config,
     )
     report_data.document_name = pdf_path.stem

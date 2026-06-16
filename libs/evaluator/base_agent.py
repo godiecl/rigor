@@ -89,6 +89,7 @@ class EvaluationResult:
     error: str | None = None
     usage: Usage | None = None
     validation_flags: list[str] = field(default_factory=list)
+    evidence_pages: list[int | None] = field(default_factory=list)
 
 
 EVALUATION_TOOL: dict[str, Any] = {
@@ -124,6 +125,7 @@ class CriterionAgent:
         text: str,
         config: JudgeConfig,
     ) -> EvaluationResult:
+        self.log.info("▶ evaluando '%s' (peso %.0f%%)…", self.name, self.weight * 100)
         try:
             response = await acompletion(
                 model=config.model,
@@ -165,6 +167,7 @@ class CriterionAgent:
             # so the displayed band can never contradict the number.
             score = clamp_score(evaluation.score)
             level = get_level_for_score(score)
+            self.log.info("✓ '%s': score=%.1f (%s)", self.name, score, level)
             if level != evaluation.level:
                 self.log.debug(
                     "level recomputed for '%s': model=%s -> score-band=%s",
