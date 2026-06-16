@@ -17,7 +17,9 @@ litellm.drop_params = True
 @dataclass(frozen=True)
 class JudgeConfig:
     model: str
-    temperature: float = 0.0
+    # None = omit the param entirely. Reasoning models (o-series, gpt-5.*) reject
+    # temperature != 1, so set EVALUATION_TEMPERATURE= (empty) for those.
+    temperature: float | None = 0.0
     max_tokens: int = 4096
     timeout_secs: int = 180
     max_retries: int = 2
@@ -30,10 +32,11 @@ class JudgeConfig:
         import os
 
         seed_raw = os.getenv("EVALUATION_SEED", "7")
+        temp_raw = os.getenv("EVALUATION_TEMPERATURE", "1.0")
         return cls(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            temperature=float(os.getenv("EVALUATION_TEMPERATURE", "0.0")),
-            max_tokens=int(os.getenv("EVALUATION_MAX_TOKENS", "4096")),
+            temperature=float(temp_raw) if temp_raw.strip() else None,
+            max_tokens=int(os.getenv("EVALUATION_MAX_TOKENS", "8192")),
             timeout_secs=int(os.getenv("EVALUATION_TIMEOUT_SECS", "180")),
             max_retries=int(os.getenv("EVALUATION_MAX_RETRIES", "2")),
             seed=int(seed_raw) if seed_raw.strip() else None,
@@ -126,21 +129,26 @@ class CriterionAgent:
         config: JudgeConfig,
     ) -> EvaluationResult:
         self.log.info("▶ evaluando '%s' (peso %.0f%%)…", self.name, self.weight * 100)
+        # Only send temperature/seed when set; some advanced models reject them.
+        params: dict[str, Any] = {
+            "model": config.model,
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": text},
+            ],
+            "max_tokens": config.max_tokens,
+            "tools": [EVALUATION_TOOL],
+            "tool_choice": FORCE_EVALUATION_TOOL,
+            "timeout": config.timeout_secs,
+            "num_retries": config.max_retries,
+        }
+        if config.temperature is not None:
+            params["temperature"] = config.temperature
+        if config.seed is not None:
+            params["seed"] = config.seed
+
         try:
-            response = await acompletion(
-                model=config.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": text},
-                ],
-                temperature=config.temperature,
-                max_tokens=config.max_tokens,
-                seed=config.seed,
-                tools=[EVALUATION_TOOL],
-                tool_choice=FORCE_EVALUATION_TOOL,
-                timeout=config.timeout_secs,
-                num_retries=config.max_retries,
-            )
+            response = await acompletion(**params)
 
             choice = response.choices[0]
             assistant_msg = choice.message
