@@ -1,0 +1,51 @@
+@startuml rigor-evaluation-flow
+' Rigor — runtime flow for evaluating one PDF (dynamic complement to the C4 view).
+title Rigor — Evaluation flow for a single PDF
+
+skinparam sequenceMessageAlign center
+autonumber
+
+actor "Coordinator" as U
+participant "Orchestrator\nrun_evaluation.py" as O
+participant "Extractor\nextraction.py" as E
+participant "Factory\nagents.py" as F
+participant "Judge ×8\nCriterionAgent" as J
+participant "litellm" as L
+database "OpenAI API" as API
+participant "Validator\nvalidation.py" as V
+participant "Aggregator\naggregation.py" as A
+participant "Reports\nreport.py" as R
+
+U -> O: main() -> process_pdfs(config)
+loop for each PDF in input/pdfs
+  O -> E: extract_clean_text(pdf)
+  E -> E: pymupdf4llm (no images/graphics)\nstrip headers/footers, pages, ligatures, hyphenation
+  E --> O: text, pages[], stats
+
+  O -> O: litellm.token_counter -> context guard
+
+  O -> F: create_agents()
+  F --> O: 8 CriterionAgents (weight + prompt)
+
+  par bounded concurrency · Semaphore = max_concurrency
+    O -> J: evaluate(text, config)
+    J -> L: acompletion(forced tool,\n conditional temperature/seed)
+    L -> API: chat.completions + function call
+    API --> L: submit_evaluation(args)
+    L --> J: response + usage
+    J -> J: Pydantic model_validate ->\n snap_to_step(0.5) -> deterministic level
+    J --> O: EvaluationResult (+ usage / cost)
+  end
+
+  O -> V: validate_result(r, text)\nlocate_evidence_pages(evidence, pages)
+  V --> O: validation_flags + citation pages
+
+  O -> A: aggregate_scores + check_consistency
+  A --> O: weighted average, level, partial, warnings
+
+  O -> R: generate_markdown_report / generate_json_report
+  R --> O: report (.md / .json)
+  O -> O: write TIMESTAMP.<pdf>_evaluation.{md,json}
+end
+O --> U: reports in output/evaluations
+@enduml

@@ -1,0 +1,66 @@
+@startuml rigor-c4-component
+' Rigor — LLM-as-a-Judge for professional-practice reports
+' C4 Component diagram (level 3). Render with:
+'   - VS Code PlantUML extension, or
+'   - plantuml docs/architecture.puml, or
+'   - https://www.plantuml.com/plantuml  (needs the C4 stdlib)
+!include <C4/C4_Component>
+
+title Rigor — Report Evaluator (LLM-as-a-Judge) · C4 Component Diagram
+
+Person(coord, "Academic coordinator", "Runs the batch evaluation and reviews the reports")
+
+System_Ext(openai, "OpenAI API", "GPT models via litellm\nchat.completions + function calling")
+ContainerDb_Ext(fs_in, "input/pdfs", "Filesystem\nPDF reports to evaluate")
+ContainerDb_Ext(fs_out, "output/evaluations", "Filesystem\n.md + .json reports (timestamped)")
+ContainerDb_Ext(env, ".env / Environment", "OPENAI_API_KEY, OPENAI_MODEL,\nEVALUATION_* (judge config)")
+
+Container_Boundary(app, "Rigor CLI · Python 3.13 / asyncio") {
+
+  Component(cli, "CLI Orchestrator", "run_evaluation.py", "Discovers PDFs, bounds concurrency (Semaphore), aggregates tokens/cost and persists the reports")
+  Component(cfg, "JudgeConfig", "base_agent.py · dataclass", "Loads config from the environment: model, temperature/seed (omittable), concurrency and context limits")
+
+  Component(extract, "PDF Extractor", "extraction.py + pymupdf4llm", "PDF → markdown; discards images/graphics; strips repeated headers/footers, page numbers, ligatures, hyphenation and placeholders; returns text + pages")
+
+  Component(factory, "Agent Factory", "agents.py", "Builds the 8 CriterionAgents with their weight and prompt (CRITERION_DEFINITIONS) and their display names")
+  Component(prompts, "Prompt Library", "prompts.py", "JUDGE_PREAMBLE (anti-hallucination rules, scope, 0.5 scale) + 8 rubrics with few-shots")
+
+  Component(judge, "Criterion Judge ×8", "base_agent.py · CriterionAgent", "Calls the LLM with the forced 'submit_evaluation' tool; validates with Pydantic; snaps the score to 0.5 steps; measures tokens/cost")
+  Component(schema, "Output Schema", "schemas.py · Pydantic", "CriterionEvaluation → strict JSON Schema (single source of truth for function calling and validation)")
+  Component(scoring, "Scoring", "scoring.py", "snap_to_step (0.5), level bands, clamp")
+
+  Component(valid, "Validator · failsafes", "validation.py", "Verifies evidence is grounded in the document, score/justification coherence, and locates each citation's page")
+  Component(agg, "Aggregator", "aggregation.py", "Weighted average, partial evaluation, consistency check across related criteria")
+  Component(report, "Report Generator", "report.py", "Markdown + JSON: breakdown, evidence with page, validation alerts and usage/cost")
+}
+
+Rel(coord, cli, "Runs", "CLI / python")
+Rel(cli, fs_in, "Reads the PDFs", "filesystem")
+Rel(cli, fs_out, "Writes .md / .json", "filesystem")
+
+Rel(cli, cfg, "Loads config")
+Rel(cfg, env, "Reads variables", "os.environ")
+
+Rel(cli, extract, "extract_clean_text(pdf)")
+Rel(extract, fs_in, "Opens the PDF", "pymupdf4llm")
+
+Rel(cli, factory, "create_agents()")
+Rel(factory, prompts, "Injects prompt + weight")
+
+Rel(cli, judge, "Runs in parallel\n(Semaphore = max_concurrency)", "asyncio.gather")
+Rel(judge, prompts, "system prompt")
+Rel(judge, schema, "tool schema + model_validate", "Pydantic")
+Rel(judge, scoring, "snap 0.5 + level")
+Rel(judge, openai, "acompletion · forced tool", "litellm / HTTPS")
+
+Rel(cli, valid, "validate_result + locate_evidence_pages")
+Rel(valid, scoring, "level bands")
+
+Rel(cli, agg, "aggregate_scores + check_consistency")
+Rel(agg, scoring, "final level")
+
+Rel(cli, report, "generate_markdown / json")
+Rel(report, agg, "reads aggregated results")
+
+SHOW_LEGEND()
+@enduml
