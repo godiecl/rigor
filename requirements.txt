@@ -5,7 +5,7 @@
 batchata==0.4.7
 coloredlogs==15.0.1
 deepagents==0.6.10
-headroom-ai==0.25.0
+headroom-ai==0.35.0
 humanize==4.15.0
 kreuzberg==4.9.9
 litellm==1.89.0
